@@ -1,0 +1,6 @@
+venv
+project.json
+*/__pycache__
+*/.mypy_cache
+tmp/*
+!tmp/.gitkeep

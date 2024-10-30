@@ -1,0 +1,35 @@
+{
+    "owner": "your_github_username",
+    "repository_name": "your_github_repository_name",
+    "project": {
+        "githubProjectId": "PVT_xxxxxxx",
+        "state": {
+            "githubFieldId": "PVTSSF_xxxxxxx",
+            "githubFieldType": "SINGLE_SELECT",
+            "mappings": {
+                "rejected": "xxxxxxxx",
+                "accepted": "xxxxxxxx",
+                "delivered": "xxxxxxxx",
+                "finished": "xxxxxxxx",
+                "started": "xxxxxxxx",
+                "planned": "xxxxxxxx",
+                "unstarted": "xxxxxxxx",
+                "unscheduled": "xxxxxxxx"
+            }
+        },
+        "storyType": {
+            "githubFieldId": "PVTSSF_xxxxxxx",
+            "githubFieldType": "SINGLE_SELECT",
+            "mappings": {
+                "feature": "xxxxxxxx",
+                "bug": "xxxxxxxx",
+                "chore": "xxxxxxxx",
+                "release": "xxxxxxxx"
+            }
+        },
+        "estimate": {
+            "githubFieldId": "PVTF_xxxxxxx",
+            "githubFieldType": "NUMBER"
+        }
+    }
+}
