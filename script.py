@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import re
 from textwrap import dedent
 import util.ProjectSettings as ps
@@ -12,33 +13,28 @@ myps = ps.ProjectSettings()
 
 
 def clean_text(text: str) -> str:
+    if text is None or text == "" or pd.isnull(text):
+        return ""
     return dedent(text).strip()
 
 
-def convert_body(row):
-    additional_body = """
+def convert_body(row, columns):
+    additional_body_base = """
         ## PivotalTrackerより転載
-        ### metadata
-        - URL: {url}
-        - Estimate: {estimate}
-        - Type: {type}
-        - Created At: {created_at}
-        - Requested By: {requested_by}
-        - Owned By: {owner}
-
+        {additional_fields}
         ### Pull Requests
         {pr_texts}
     """
-    new_body = clean_text(row["body"]) + "\n" + clean_text(additional_body)
-    return new_body.format(
-        url=row["url"],
-        estimate=row["estimate"],
-        type=row["type"],
-        created_at=row["created_at"],
-        requested_by=row["requested_by"],
-        owner=", ".join(row["owner"]),
-        pr_texts="\n".join(row["pull_request"]),
+    additional_fields = ""
+    for column_name, column in columns.items():
+        if column.include_description():
+            additional_fields += f"- {column_name}: {row[column_name]}\n"
+
+    additional_body = clean_text(additional_body_base).format(
+        additional_fields=additional_fields.strip(),
+        pr_texts="\n".join(merge_columns(row, "Pull Request")),
     )
+    return clean_text(row["Description"]) + "\n" + additional_body
 
 
 def add_comments(issue_id, comments):
@@ -52,25 +48,17 @@ def add_comments(issue_id, comments):
         github_operator.add_comment_to_issue(issue_id, body)
 
 
-def update_field_value(project_item_id, target, project_setting, value):
-    obj = None
-    match target:
-        case "story_type":
-            obj = project_setting.story_type
-        case "state":
-            obj = project_setting.state
-        case "estimate":
-            obj = project_setting.estimate
-    if obj is None or obj.github_field_id is None:
+def update_field_value(project_id, project_item_id, filed_value, value):
+    if filed_value is None or filed_value.github_field_id is None:
         # フィールドの設定がない場合は何もしない
         return
 
     github_operator.update_project_item_field_value(
-        project_setting.github_project_id,
+        project_id,
         project_item_id,
-        obj.github_field_id,
-        obj.github_field_type,
-        obj.convert(value),
+        filed_value.github_field_id,
+        filed_value.github_field_type,
+        filed_value.convert(value),
     )
 
 
@@ -96,14 +84,14 @@ def remove_suffix_text(text):
 
 def merge_columns(row, column_name):
     # xxx.1, xxx.2, xxx.3, ... という列名がある場合、xxxの列に統合する。nullは無視する。
-    columns = [column for column in row.index if column.startswith(column_name)]
+    columns = [column for column in list(row.keys()) if column.startswith(column_name)]
     return [row[column] for column in columns if pd.notnull(row[column])]
 
 
 def create_works_log_row(pivotal_obj, issue, result):
     return {
-        "title": pivotal_obj["title"],
-        "pivotal_url": pivotal_obj["url"],
+        "title": convert_issue_title(pivotal_obj["Id"], pivotal_obj["Title"]),
+        "pivotal_url": pivotal_obj["URL"],
         "github_url": issue["url"],
         "result": result,
     }
@@ -111,57 +99,42 @@ def create_works_log_row(pivotal_obj, issue, result):
 
 def read_file(file_path):
     df = pd.read_csv(file_path)
-    pivotal_issues = []
-    for i, row in df.iterrows():
-        json = {
-            "title": convert_issue_title(row["Id"], row["Title"]),
-            "body": row["Description"],
-            "type": row["Type"],
-            "state": row["Current State"],
-            "estimate": row["Estimate"],
-            "requested_by": row["Requested By"],
-            "owner": merge_columns(row, "Owned By"),
-            "created_at": row["Created at"],
-            "url": row["URL"],
-            "pull_request": merge_columns(row, "Pull Request"),
-            "git_branch": merge_columns(row, "Git Branch"),
-            "comment": merge_columns(row, "Comment"),
-        }
-        pivotal_issues.append(json)
-    return pivotal_issues
+    df = df.replace([np.nan], [None])
+    return df.to_dict(orient="records")
+
+
+def update_field_values(project_id, project_item_id, pivotal, columns):
+    for column_name, column in columns.items():
+        if column.exist_field_value():
+            update_field_value(
+                project_id, project_item_id, column.field_value, pivotal[column_name]
+            )
+    return pivotal
 
 
 def create_or_find_for_github(repository_id, pivotal_issues, exists_issues):
     works = []
-    for target_issue in pivotal_issues:
+    for pivotal in pivotal_issues:
         project_id = myps.project.github_project_id
-        title_hash = convert_hash(target_issue["title"])
+        issue_title = convert_issue_title(pivotal["Id"], pivotal["Title"])
+        title_hash = convert_hash(issue_title)
         if title_hash in exists_issues:
-            print(f'{target_issue["title"]} is already exists.')
+            print(f"{issue_title} is already exists.")
             works.append(
-                create_works_log_row(target_issue, exists_issues[title_hash], "exists")
+                create_works_log_row(pivotal, exists_issues[title_hash], "exists")
             )
             continue
 
-        new_issue = github_operator.create_issue(
-            repository_id, target_issue["title"], convert_body(target_issue)
-        )
+        print(f"{issue_title} is creating....")
+        issue_body = convert_body(pivotal, myps.project.columns)
+        new_issue = github_operator.create_issue(repository_id, issue_title, issue_body)
         issue_id = new_issue["id"]
-        add_comments(issue_id, target_issue["comment"])
+        add_comments(issue_id, merge_columns(pivotal, "Comment"))
         project_item_id = github_operator.add_issue_to_project(project_id, issue_id)
         # 各種フィールドの更新
-        update_field_value(
-            project_item_id, "story_type", myps.project, target_issue["type"]
-        )
-        update_field_value(
-            project_item_id, "state", myps.project, target_issue["state"]
-        )
-        update_field_value(
-            project_item_id, "estimate", myps.project, target_issue["estimate"]
-        )
-
-        print(f'{target_issue["title"]} is created.')
-        works.append(create_works_log_row(target_issue, new_issue, "create"))
+        update_field_values(project_id, project_item_id, pivotal, myps.project.columns)
+        print(f"{issue_title} is created.")
+        works.append(create_works_log_row(pivotal, new_issue, "create"))
     return works
 
 

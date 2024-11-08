@@ -1,35 +1,58 @@
 {
-    "owner": "your_github_username",
-    "repository_name": "your_github_repository_name",
+    "owner": "your_organization_name",
+    "repository_name": "your_repository_name",
     "project": {
-        "githubProjectId": "PVT_xxxxxxx",
-        "state": {
-            "githubFieldId": "PVTSSF_xxxxxxx",
-            "githubFieldType": "SINGLE_SELECT",
-            "mappings": {
-                "rejected": "xxxxxxxx",
-                "accepted": "xxxxxxxx",
-                "delivered": "xxxxxxxx",
-                "finished": "xxxxxxxx",
-                "started": "xxxxxxxx",
-                "planned": "xxxxxxxx",
-                "unstarted": "xxxxxxxx",
-                "unscheduled": "xxxxxxxx"
+        "github_project_id": "PVT_xxxxxxxx",
+        "columns": {
+            "URL": {
+                "write_description": true
+            },
+            "Labels": {
+                "write_description": true
+            },
+            "Type": {
+                "write_description": true,
+                "field_value": {
+                    "github_field_id": "PVTSSF_xxxxxxxx",
+                    "github_field_type": "SINGLE_SELECT",
+                    "mappings": {
+                        "feature": "xxxxxxxx",
+                        "bug": "xxxxxxxx",
+                        "chore": "xxxxxxxx",
+                        "release": "xxxxxxxx"
+                    }
+                }
+            },
+            "Estimate": {
+                "write_description": true,
+                "field_value": {
+                    "github_field_id": "PVTF_xxxxxxxx",
+                    "github_field_type": "NUMBER"
+                }
+            },
+            "Current State": {
+                "write_description": true,
+                "field_value": {
+                    "github_field_id": "PVTSSF_xxxxxxxxx",
+                    "github_field_type": "SINGLE_SELECT",
+                    "mappings": {
+                        "rejected": "xxxxxxxx",
+                        "accepted": "xxxxxxxx",
+                        "delivered": "xxxxxxxx",
+                        "finished": "xxxxxxxx",
+                        "started": "xxxxxxxx",
+                        "planned": "xxxxxxxx",
+                        "unstarted": "xxxxxxxx",
+                        "unscheduled": "xxxxxxxx"
+                    }
+                }
+            },
+            "Requested By": {
+                "write_description": true
+            },
+            "Owned By": {
+                "write_description": true
             }
-        },
-        "storyType": {
-            "githubFieldId": "PVTSSF_xxxxxxx",
-            "githubFieldType": "SINGLE_SELECT",
-            "mappings": {
-                "feature": "xxxxxxxx",
-                "bug": "xxxxxxxx",
-                "chore": "xxxxxxxx",
-                "release": "xxxxxxxx"
-            }
-        },
-        "estimate": {
-            "githubFieldId": "PVTF_xxxxxxx",
-            "githubFieldType": "NUMBER"
         }
     }
 }
